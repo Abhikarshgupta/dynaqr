@@ -31,9 +31,22 @@ export function Sidebar() {
   const supabase = createClient();
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push("/auth/login");
-    router.refresh();
+    console.log("[Sidebar] Signing out user");
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("[Sidebar] Sign out error:", error);
+      } else {
+        console.log("[Sidebar] Sign out successful");
+      }
+      router.push("/auth/login");
+      router.refresh();
+    } catch (error) {
+      console.error("[Sidebar] Unexpected error during sign out:", error);
+      // Still redirect even if sign out fails
+      router.push("/auth/login");
+      router.refresh();
+    }
   };
 
   return (

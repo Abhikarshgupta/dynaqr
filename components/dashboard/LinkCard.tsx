@@ -54,20 +54,32 @@ export function LinkCard({ link, onDelete }: LinkCardProps) {
 
     try {
       setLoading(true);
+      console.log("[LinkCard] Deleting link:", {
+        linkId: link.id,
+        slug: link.slug,
+      });
+      
       const { error } = await supabase
         .from("links")
         .delete()
         .eq("id", link.id);
 
       if (error) {
+        console.error("[LinkCard] Delete failed:", {
+          linkId: link.id,
+          error: error.message,
+          code: error.code,
+        });
         toast.error(error.message);
         return;
       }
 
+      console.log("[LinkCard] Link deleted successfully:", link.id);
       toast.success("Link deleted successfully");
       onDelete?.();
       router.refresh();
     } catch (error) {
+      console.error("[LinkCard] Unexpected error during delete:", error);
       toast.error("Failed to delete link");
     } finally {
       setLoading(false);

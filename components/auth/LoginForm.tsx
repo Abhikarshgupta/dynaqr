@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { createClient } from "@/lib/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -28,7 +29,15 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
+  
+  // Initialize Supabase client with error handling
+  let supabase: SupabaseClient | null = null;
+  try {
+    supabase = createClient();
+  } catch (error) {
+    console.error("Failed to create Supabase client:", error);
+    // Will show error in onSubmit
+  }
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -41,20 +50,38 @@ export function LoginForm() {
   const onSubmit = async (values: LoginFormValues) => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log("[Login] Attempting login for:", values.email);
+      
+      if (!supabase) {
+        console.error("[Login] Supabase client not initialized");
+        toast.error("Configuration error: Supabase client not initialized. Please check environment variables.");
+        return;
+      }
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
 
       if (error) {
+        console.error("[Login] Login failed:", {
+          email: values.email,
+          error: error.message,
+          code: error.status,
+        });
         toast.error(error.message);
         return;
       }
 
+      console.log("[Login] Login successful:", {
+        userId: data.user?.id,
+        email: data.user?.email,
+      });
       toast.success("Logged in successfully");
       router.push("/dashboard");
       router.refresh();
     } catch (error) {
+      console.error("[Login] Unexpected error:", error);
       toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);

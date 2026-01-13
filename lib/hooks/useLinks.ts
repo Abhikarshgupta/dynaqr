@@ -14,14 +14,22 @@ export function useLinks() {
     const fetchLinks = async () => {
       try {
         setLoading(true);
+        console.log("[useLinks] Fetching links for user");
+        
         const {
           data: { user },
         } = await supabase.auth.getUser();
 
         if (!user) {
+          console.log("[useLinks] No user found, skipping fetch");
           setLoading(false);
           return;
         }
+
+        console.log("[useLinks] User authenticated:", {
+          userId: user.id,
+          email: user.email,
+        });
 
         const { data, error } = await supabase
           .from("links")
@@ -30,11 +38,21 @@ export function useLinks() {
           .order("created_at", { ascending: false });
 
         if (error) {
+          console.error("[useLinks] Fetch failed:", {
+            userId: user.id,
+            error: error.message,
+            code: error.code,
+          });
           setError(error.message);
         } else {
+          console.log("[useLinks] Links fetched successfully:", {
+            count: data?.length || 0,
+            userId: user.id,
+          });
           setLinks((data as Link[]) || []);
         }
       } catch (err) {
+        console.error("[useLinks] Unexpected error:", err);
         setError("Failed to fetch links");
       } finally {
         setLoading(false);

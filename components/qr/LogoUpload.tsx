@@ -50,12 +50,19 @@ export function LogoUpload({ onUploadComplete, currentLogo }: LogoUploadProps) {
 
   const handleUpload = async (file: File) => {
     if (!user) {
+      console.warn("[LogoUpload] Upload attempted without user");
       toast.error("You must be logged in");
       return;
     }
 
     try {
       setUploading(true);
+      console.log("[LogoUpload] Starting upload:", {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        userId: user.id,
+      });
 
       const fileExt = file.name.split(".").pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
@@ -65,21 +72,27 @@ export function LogoUpload({ onUploadComplete, currentLogo }: LogoUploadProps) {
       // Delete old logo if exists
       if (currentLogo) {
         try {
+          console.log("[LogoUpload] Deleting old logo:", currentLogo);
           // Extract the path from the full URL
           // URL format: https://...supabase.co/storage/v1/object/public/qr-logos/userId/filename.png
           const urlParts = currentLogo.split("/qr-logos/");
           if (urlParts.length > 1) {
             const oldPath = urlParts[1];
-            await supabase.storage.from("qr-logos").remove([oldPath]);
+            const { error: deleteError } = await supabase.storage.from("qr-logos").remove([oldPath]);
+            if (deleteError) {
+              console.warn("[LogoUpload] Could not delete old logo:", deleteError);
+            } else {
+              console.log("[LogoUpload] Old logo deleted successfully");
+            }
           }
         } catch (error) {
-          // Ignore errors when deleting old logo
-          console.warn("Could not delete old logo:", error);
+          console.warn("[LogoUpload] Error deleting old logo:", error);
         }
       }
 
       // Upload new file
-      const { error: uploadError } = await supabase.storage
+      console.log("[LogoUpload] Uploading to path:", filePath);
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from("qr-logos")
         .upload(filePath, file, {
           cacheControl: "3600",
@@ -87,14 +100,22 @@ export function LogoUpload({ onUploadComplete, currentLogo }: LogoUploadProps) {
         });
 
       if (uploadError) {
+        console.error("[LogoUpload] Upload failed:", {
+          path: filePath,
+          error: uploadError.message,
+          // statusCode: uploadError.httpStatusCode,
+        });
         toast.error(uploadError.message);
         return;
       }
+
+      console.log("[LogoUpload] File uploaded successfully:", uploadData?.path);
 
       // Get public URL - construct URL directly without /public/ segment
       // URL format: https://[project].supabase.co/storage/v1/object/qr-logos/[path]
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       if (!supabaseUrl) {
+        console.error("[LogoUpload] Supabase URL not configured");
         toast.error("Supabase URL not configured");
         return;
       }
@@ -103,9 +124,11 @@ export function LogoUpload({ onUploadComplete, currentLogo }: LogoUploadProps) {
       const baseUrl = supabaseUrl.replace(/\/$/, "");
       const publicUrl = `${baseUrl}/storage/v1/object/qr-logos/${filePath}`;
 
+      console.log("[LogoUpload] Generated public URL:", publicUrl);
       onUploadComplete(publicUrl);
       toast.success("Logo uploaded successfully");
     } catch (error) {
+      console.error("[LogoUpload] Unexpected error:", error);
       toast.error("Failed to upload logo");
     } finally {
       setUploading(false);

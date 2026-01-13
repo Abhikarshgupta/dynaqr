@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { createClient } from "@/lib/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -34,7 +35,15 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 export function SignupForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
+  
+  // Initialize Supabase client with error handling
+  let supabase: SupabaseClient | null = null;
+  try {
+    supabase = createClient();
+  } catch (error) {
+    console.error("Failed to create Supabase client:", error);
+    // Will show error in onSubmit
+  }
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
@@ -48,11 +57,19 @@ export function SignupForm() {
   const onSubmit = async (values: SignupFormValues) => {
     try {
       setLoading(true);
+      console.log("[Signup] Attempting signup for:", values.email);
+      
+      if (!supabase) {
+        console.error("[Signup] Supabase client not initialized");
+        toast.error("Configuration error: Supabase client not initialized. Please check environment variables.");
+        return;
+      }
       
       // Get origin safely (client-side only)
       const origin = typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      console.log("[Signup] Using redirect origin:", origin);
       
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
         options: {
@@ -61,14 +78,24 @@ export function SignupForm() {
       });
 
       if (error) {
+        console.error("[Signup] Signup failed:", {
+          email: values.email,
+          error: error.message,
+          code: error.status,
+        });
         toast.error(error.message);
         return;
       }
 
+      console.log("[Signup] Signup successful:", {
+        userId: data.user?.id,
+        email: data.user?.email,
+        session: !!data.session,
+      });
       toast.success("Account created! Please check your email to verify.");
       router.push("/auth/login");
     } catch (error) {
-      console.error("Signup error:", error);
+      console.error("[Signup] Unexpected error:", error);
       toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);

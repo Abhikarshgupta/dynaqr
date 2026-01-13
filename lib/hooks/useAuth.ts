@@ -16,13 +16,27 @@ export function useAuth() {
       try {
         const {
           data: { user },
+          error,
         } = await supabase.auth.getUser();
         if (mounted) {
           setUser(user);
           setLoading(false);
         }
+        if (error) {
+          console.error("[useAuth] Error fetching user:", {
+            error: error.message,
+            code: error.status,
+          });
+        } else if (user) {
+          console.log("[useAuth] User authenticated:", {
+            userId: user.id,
+            email: user.email,
+          });
+        } else {
+          console.log("[useAuth] No user found");
+        }
       } catch (error) {
-        console.error("Error getting user:", error);
+        console.error("[useAuth] Unexpected error:", error);
         if (mounted) {
           setLoading(false);
         }

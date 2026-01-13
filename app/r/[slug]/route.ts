@@ -6,6 +6,8 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
+  console.log("[Redirect] Processing redirect for slug:", slug);
+  
   const supabase = await createClient();
 
   // Query for the link
@@ -16,11 +18,23 @@ export async function GET(
     .single();
 
   if (error || !link) {
+    console.error("[Redirect] Link not found:", {
+      slug,
+      error: error?.message,
+      code: error?.code,
+    });
     return NextResponse.json(
       { error: "Link not found" },
       { status: 404 }
     );
   }
+
+  console.log("[Redirect] Link found:", {
+    slug,
+    linkId: link.id,
+    destination: link.original_url,
+    currentScans: link.scan_count,
+  });
 
   // Increment scan count asynchronously (don't wait for it)
   Promise.resolve(
@@ -30,12 +44,17 @@ export async function GET(
       .eq("id", link.id)
   )
     .then(() => {
-      // Successfully updated, but we don't need to wait
+      console.log("[Redirect] Scan count incremented for:", slug);
     })
-    .catch(() => {
+    .catch((err) => {
+      console.error("[Redirect] Failed to increment scan count:", {
+        slug,
+        error: err,
+      });
       // Silently fail - we don't want to block the redirect
     });
 
+  console.log("[Redirect] Redirecting to:", link.original_url);
   // Return 302 redirect
   return NextResponse.redirect(link.original_url, { status: 302 });
 }

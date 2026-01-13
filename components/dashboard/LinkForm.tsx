@@ -107,6 +107,12 @@ export function LinkForm({ linkId, initialData }: LinkFormProps) {
 
       if (linkId) {
         // Update existing link
+        console.log("[LinkForm] Updating link:", {
+          linkId,
+          userId: user.id,
+          newUrl: values.original_url,
+        });
+        
         const { error } = await supabase
           .from("links")
           .update({
@@ -116,20 +122,40 @@ export function LinkForm({ linkId, initialData }: LinkFormProps) {
           .eq("user_id", user.id);
 
         if (error) {
+          console.error("[LinkForm] Update failed:", {
+            linkId,
+            error: error.message,
+            code: error.code,
+          });
           toast.error(error.message);
           return;
         }
 
+        console.log("[LinkForm] Link updated successfully:", linkId);
         toast.success("Link updated successfully");
       } else {
         // Create new link
+        console.log("[LinkForm] Creating new link:", {
+          slug: finalSlug,
+          userId: user.id,
+          url: values.original_url,
+        });
+        
         const { error } = await supabase.from("links").insert(linkData);
 
         if (error) {
+          console.error("[LinkForm] Create failed:", {
+            slug: finalSlug,
+            error: error.message,
+            code: error.code,
+          });
           toast.error(error.message);
           return;
         }
 
+        console.log("[LinkForm] Link created successfully:", {
+          slug: finalSlug,
+        });
         toast.success("Link created successfully");
       }
 

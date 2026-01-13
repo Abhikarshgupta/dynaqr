@@ -120,19 +120,38 @@ export function QRCodeEditor({
 
   const handleSave = async () => {
     try {
+      console.log("[QRCodeEditor] Saving QR config:", {
+        linkId,
+        slug,
+        config: {
+          dots: config.dots,
+          corners: config.corners,
+          hasLogo: !!config.logo,
+          logoShape: config.logoShape,
+          hasGradient: typeof config.color === "object",
+        },
+      });
+      
       const { error } = await supabase
         .from("links")
         .update({ qr_config: config })
         .eq("id", linkId);
 
       if (error) {
+        console.error("[QRCodeEditor] Save failed:", {
+          linkId,
+          error: error.message,
+          code: error.code,
+        });
         toast.error(error.message);
         return;
       }
 
+      console.log("[QRCodeEditor] QR config saved successfully:", linkId);
       toast.success("QR code configuration saved");
       router.refresh();
     } catch (error) {
+      console.error("[QRCodeEditor] Unexpected error during save:", error);
       toast.error("Failed to save configuration");
     }
   };
